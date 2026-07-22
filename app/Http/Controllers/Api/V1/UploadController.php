@@ -10,6 +10,6 @@ class UploadController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
-        //
+        exit("in");
     }
 }

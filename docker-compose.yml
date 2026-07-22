@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     container_name: tidewrk_app
+    # Run as the host user so bind-mounted files stay writable/owned by you.
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - .:/var/www
     depends_on:

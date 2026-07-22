@@ -154,7 +154,7 @@ Common tasks are wrapped in a `Makefile`. Run `make` (or `make help`) to list th
 
 ---
 
-## API Authentication
+## PART 1 (CODING) : API Authentication
 
 The API is protected by **Laravel Sanctum**, so requests must include a Bearer token.
 
