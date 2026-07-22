@@ -2,9 +2,9 @@
 
 | Component | Version |
 |-----------|---------|
-| PHP       | 8.3 (FPM, Alpine) |
+| PHP       | 8.4 (FPM) |
 | Laravel   | Latest |
-| Database  | MySQL 8.0 |
+| Database  | MySQL 8.4 |
 | Cache/Queue | Redis |
 | Web server | Nginx |
 | Excel     | maatwebsite/excel |
@@ -15,7 +15,7 @@
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
 
-That's it — everything (PHP, MySQL, Redis, Nginx) runs in containers, so you don't need PHP or a
+(PHP, MySQL, Redis, Nginx) runs in containers, so you don't need PHP or a
 database installed locally.
 
 ---
@@ -38,15 +38,15 @@ cp .env.example .env
 Update these values so they match the Docker service names:
 
 ```dotenv
-APP_URL=http://localhost:8080
+APP_URL=http://localhost:8000
 
 # Database — MySQL container
 DB_CONNECTION=mysql
-DB_HOST=db
+DB_HOST=mysql
 DB_PORT=3306
-DB_DATABASE=tidewrk
-DB_USERNAME=tidewrk
-DB_PASSWORD=secret
+DB_DATABASE=student_import
+DB_USERNAME=laravel
+DB_PASSWORD=password
 
 # Queue & cache — Redis container
 QUEUE_CONNECTION=redis
@@ -59,31 +59,54 @@ REDIS_PORT=6379
 ```
 
 > **Two host values must point at the container names, not `127.0.0.1`:**
-> - `DB_HOST=db`
+> - `DB_HOST=mysql`
 > - `REDIS_HOST=redis`
 >
 > Inside the `app` container, `127.0.0.1` means the container itself — not the MySQL or
-> Redis container. `db` and `redis` are the service names from `docker-compose.yml`.
+> Redis container. `mysql` and `redis` are the service names from `docker-compose.yml`.
 >
-> Also: don't leave `DB_PASSWORD` empty — it must match the `db` service password
-> (`secret`), or the connection is refused. `REDIS_PASSWORD=null` is correct (the Redis
+> Also: don't leave `DB_PASSWORD` empty — it must match the `mysql` service password
+> (`password`), or the connection is refused. `REDIS_PASSWORD=null` is correct (the Redis
 > container has no password).
 
 ### 3. Build and start the containers
 
+> **Shortcut (recommended):** if you have `make` installed, skip steps 3–4 and run a
+> single command:
+> ```bash
+> make setup
+> ```
+> This builds the images, starts the containers (waiting until MySQL is healthy),
+> installs dependencies, generates the app key, and runs migrations. Then jump to
+> step 5. To do it manually, continue below.
+
 ```bash
-docker compose up -d --build
+docker compose up -d --build --wait
+# or with make:
+make build && make up
 ```
 
-This starts five services:
+The `--wait` flag blocks until every container reports **healthy** — in particular it
+waits for MySQL to finish its first-time initialization before continuing, which avoids
+the "Connection refused" error that happens if you migrate too early.
+
+This starts four services:
 
 | Service | Purpose | Exposed at |
 |---------|---------|------------|
-| `nginx` | Web server | http://localhost:8080 |
+| `nginx` | Web server | http://localhost:8000 |
 | `app`   | PHP-FPM (Laravel) | — |
-| `db`    | MySQL 8.0 | localhost:3306 |
+| `mysql` | MySQL 8.4 (with healthcheck) | localhost:3306 |
 | `redis` | Cache + queue | localhost:6379 |
-| `queue` | Background import worker | — |
+
+> The `app` container depends on MySQL's healthcheck (`condition: service_healthy`),
+> so it will not start until the database is actually accepting connections.
+
+> **Queued imports:** there's no dedicated worker container, so run the queue worker
+> yourself when processing uploads:
+> ```bash
+> docker compose exec app php artisan queue:work
+> ```
 
 ### 4. Install dependencies & bootstrap the app
 
@@ -93,74 +116,40 @@ docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate
 ```
 
+Or with make:
+
+```bash
+make install
+docker compose exec app php artisan key:generate
+make migrate
+```
+
 ### 5. Verify
 
-Open **http://localhost:8080** — you should reach the Laravel app.
+Open **http://localhost:8000** — you should reach the Laravel app.
 
 ---
 
-## Usage
+## Makefile Commands
 
-### Upload a file
+Common tasks are wrapped in a `Makefile`. Run `make` (or `make help`) to list them.
 
-```bash
-curl -X POST http://localhost:8080/api/uploads \
-  -F "file=@storage/app/sample/students.xlsx"
-```
-
-Example response:
-
-```json
-{
-  "message": "Import queued successfully.",
-  "batch_id": "9b1c...",
-  "status_url": "/api/uploads/9b1c.../status"
-}
-```
-
-The queued `queue` worker processes the import in the background. Poll the status URL (or check
-the DB) to see progress.
-
-### Expected file format
-
-Each row contains **both** school and student columns. School columns repeat across rows:
-
-| school_code | school_name    | student_number | student_name | student_email      |
-|-------------|----------------|----------------|--------------|--------------------|
-| SCH001      | Springfield HS | STU1001        | Bart Simpson | bart@example.com   |
-| SCH001      | Springfield HS | STU1002        | Lisa Simpson | lisa@example.com   |
-| SCH002      | Shelbyville HS | STU2001        | Milhouse V.  | milhouse@ex.com    |
-
-> **Natural keys**: schools are deduplicated on `school_code`, students on `student_number`.
-> Adjust these in the migration + import class if your file uses different identifiers.
-
----
-
-## Common Dev Commands
-
-```bash
-# View logs
-docker compose logs -f app
-docker compose logs -f queue
-
-# Open a shell in the app container
-docker compose exec app bash
-
-# Run tests
-docker compose exec app php artisan test
-
-# Re-run migrations from scratch
-docker compose exec app php artisan migrate:fresh
-
-# Restart the queue worker after editing a job class
-docker compose restart queue
-
-# Stop everything
-docker compose down
-
-# Stop and wipe the database volume
-docker compose down -v
-```
+| Command | Description |
+|---------|-------------|
+| `make setup` | Full first-time setup (build, up, install, key, migrate) |
+| `make build` | Build the Docker images |
+| `make up` | Start all containers in the background |
+| `make down` | Stop and remove containers (keeps DB data) |
+| `make clean` | Stop and remove containers **and volumes** (wipes DB data) |
+| `make restart` | Restart all containers |
+| `make install` | `composer install` inside the app container |
+| `make migrate` | Run database migrations |
+| `make fresh` | Drop all tables and re-run migrations |
+| `make queue` | Start the queue worker (processes uploads) |
+| `make test` | Run the test suite |
+| `make shell` | Open a bash shell in the app container |
+| `make logs` | Tail logs from all containers |
+| `make ps` | List running containers |
 
 ---
 
@@ -170,19 +159,9 @@ docker compose down -v
 .
 ├── app/                    # Laravel application code
 ├── docker/
-│   ├── php/Dockerfile      # PHP 8.3-FPM image (Laravel + Laravel Excel extensions)
+│   ├── php/Dockerfile      # PHP 8.4-FPM image (Laravel + Laravel Excel extensions)
 │   └── nginx/default.conf  # Nginx site config (large upload limits)
-├── docker-compose.yml      # app, nginx, db, redis, queue services
+├── docker-compose.yml      # app, nginx, mysql, redis services
 ├── routes/api.php          # API routes
 └── README.md
 ```
-
----
-
-## Notes
-
-- Nginx is configured for large uploads (`client_max_body_size 100M`, `fastcgi_read_timeout 300`).
-- Imports run through Laravel Excel with `WithChunkReading` + `WithBatchInserts` and are dispatched
-  as queued jobs (`ShouldQueue`) so the HTTP request returns immediately.
-- Schools are inserted via bulk `upsert()` against a unique key, guaranteeing single insertion even
-  under concurrency.

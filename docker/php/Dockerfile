@@ -1,43 +1,23 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.4-fpm
 
-# Install system dependencies
-RUN apk add --no-cache \
-    bash \
+RUN apt-get update && apt-get install -y \
     git \
-    curl \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    libzip-dev \
-    zip \
     unzip \
-    oniguruma-dev \
-    icu-dev \
-    $PHPIZE_DEPS
+    zip \
+    curl \
+    libzip-dev \
+    libpng-dev \
+    libxml2-dev \
+    libonig-dev
 
-# Install PHP extensions required by Laravel + Laravel Excel
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        pdo \
-        pdo_mysql \
-        mbstring \
-        bcmath \
-        gd \
-        zip \
-        intl \
-        opcache \
-        exif
+RUN docker-php-ext-install \
+    pdo_mysql \
+    mbstring \
+    zip
 
-# Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Avoid git "dubious ownership" errors on the bind-mounted project
+RUN git config --global --add safe.directory /var/www
+
 WORKDIR /var/www
-
-# Run as non-root www-data user
-RUN chown -R www-data:www-data /var/www
-
-USER www-data
-
-EXPOSE 9000
-
-CMD ["php-fpm"]
