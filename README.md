@@ -146,10 +146,47 @@ Common tasks are wrapped in a `Makefile`. Run `make` (or `make help`) to list th
 | `make migrate` | Run database migrations |
 | `make fresh` | Drop all tables and re-run migrations |
 | `make queue` | Start the queue worker (processes uploads) |
+| `make token` | Create a test user and print a Sanctum API token |
 | `make test` | Run the test suite |
 | `make shell` | Open a bash shell in the app container |
 | `make logs` | Tail logs from all containers |
 | `make ps` | List running containers |
+
+---
+
+## API Authentication
+
+The API is protected by **Laravel Sanctum**, so requests must include a Bearer token.
+
+Generate a token (creates a test user `test@test.com` on first run):
+
+```bash
+make token
+```
+
+It prints something like:
+
+```
+User: test@test.com
+Token: 1|1TYJeWv6ciMP4IMXVF9dbFn8BPR5sJdMM7VU44qXd0047b5d
+```
+
+Use it in requests via the `Authorization` header:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/upload \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@students.xlsx"
+```
+
+In **Postman**: Authorization tab → Type **Bearer Token** → paste the token.
+
+> Under the hood `make token` runs `php artisan api:token`. You can pass a custom email
+> or label directly:
+> ```bash
+> docker compose exec app php artisan api:token admin@site.com --name=mobile
+> ```
 
 ---
 
