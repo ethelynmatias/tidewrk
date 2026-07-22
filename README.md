@@ -188,6 +188,16 @@ In **Postman**: Authorization tab → Type **Bearer Token** → paste the token.
 > docker compose exec app php artisan api:token admin@site.com --name=mobile
 > ```
 
+> ⚠️ **IMPORTANT — the upload is processed by a queued job.**
+> After uploading, the import does **not** run until a queue worker is running. Start one
+> (and leave it running) so queued jobs are processed:
+> ```bash
+> make queue
+> ```
+> Without a worker, the endpoint still returns `202 { "batch_id": ... }`, but the data is
+> **not** imported — the job just waits in the queue. Check the result via the
+> `import_batches` table (`status` becomes `completed`).
+
 ---
 
 ## Testing

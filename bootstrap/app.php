@@ -24,11 +24,14 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*'),
         );
 
-        // Return a clear JSON error when the Authorization token is missing/invalid.
+        // Return a clean, structured JSON error when the token is missing/invalid.
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json([
-                    'message' => 'Unauthorized. Missing or invalid authorization token.',
+                    'success' => false,
+                    'error'   => 'unauthorized',
+                    'message' => 'Missing or invalid authorization token.',
+                    'status'  => 401,
                 ], 401);
             }
         });
