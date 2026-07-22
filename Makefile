@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs shell install setup migrate fresh test queue ps clean
+.PHONY: help build up down restart logs shell install setup migrate fresh test queue ps clean token
 
 # Default target — show available commands
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make migrate   - Run database migrations"
 	@echo "  make fresh     - Drop all tables and re-run migrations"
 	@echo "  make queue     - Start the queue worker (processes uploads)"
+	@echo "  make token     - Create a test user and print a Sanctum API token"
 	@echo "  make test      - Run the test suite"
 	@echo "  make shell     - Open a bash shell in the app container"
 	@echo "  make logs      - Tail logs from all containers"
@@ -55,6 +56,9 @@ fresh:
 
 queue:
 	docker compose exec app php artisan queue:work
+
+token:
+	docker compose exec app php artisan api:token
 
 test:
 	docker compose exec app php artisan test

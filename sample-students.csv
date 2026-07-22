@@ -1,0 +1,16 @@
+student_id,student_code,first_name,last_name,date_of_birth,school_code,school_name
+10001,STU-001,Bart,Simpson,2010-04-01,SCH-001,Springfield High
+10002,STU-002,Lisa,Simpson,2012-05-09,SCH-001,Springfield High
+10003,STU-003,Ralph,Wiggum,2011-03-15,SCH-001,Springfield High
+10004,STU-004,Milhouse,Van Houten,2010-07-01,SCH-002,Shelbyville High
+10005,STU-005,Nelson,Muntz,2009-02-11,SCH-002,Shelbyville High
+10006,STU-006,Martin,Prince,2010-09-22,SCH-002,Shelbyville High
+10007,STU-007,Todd,Flanders,2011-01-30,SCH-003,Ogdenville Academy
+10008,STU-008,Rod,Flanders,2012-06-18,SCH-003,Ogdenville Academy
+10009,STU-009,Sherri,Mackleberry,2010-12-05,SCH-003,Ogdenville Academy
+10010,STU-010,Terri,Mackleberry,2010-12-05,SCH-003,Ogdenville Academy
+10011,STU-011,Wendell,Borton,2011-08-14,SCH-001,Springfield High
+10012,STU-012,Lewis,Clark,2010-05-27,SCH-001,Springfield High
+10013,STU-013,Database,Nerd,2009-11-03,SCH-004,North Haverbrook School
+10014,STU-014,Uter,Zorker,2011-04-19,SCH-004,North Haverbrook School
+10015,STU-015,Jimbo,Jones,2009-07-08,SCH-002,Shelbyville High

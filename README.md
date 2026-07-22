@@ -7,7 +7,7 @@
 | Database  | MySQL 8.4 |
 | Cache/Queue | Redis |
 | Web server | Nginx |
-| Excel     | maatwebsite/excel |
+| CSV parsing | Native PHP streaming (`SplFileObject`) |
 
 ---
 
@@ -146,6 +146,7 @@ Common tasks are wrapped in a `Makefile`. Run `make` (or `make help`) to list th
 | `make migrate` | Run database migrations |
 | `make fresh` | Drop all tables and re-run migrations |
 | `make queue` | Start the queue worker (processes uploads) |
+| `make token` | Create a test user and print a Sanctum API token |
 | `make test` | Run the test suite |
 | `make shell` | Open a bash shell in the app container |
 | `make logs` | Tail logs from all containers |
@@ -153,15 +154,125 @@ Common tasks are wrapped in a `Makefile`. Run `make` (or `make help`) to list th
 
 ---
 
+## PART 1 (CODING) : API Authentication
+
+The API is protected by **Laravel Sanctum**, so requests must include a Bearer token.
+
+Generate a token (creates a test user `test@test.com` on first run):
+
+```bash
+make token
+```
+
+It prints something like:
+
+```
+User: test@test.com
+Token: 1|1TYJeWv6ciMP4IMXVF9dbFn8BPR5sJdMM7VU44qXd0047b5d
+```
+
+Use it in requests via the `Authorization` header:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/upload \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@students.csv"
+```
+
+In **Postman**: Authorization tab → Type **Bearer Token** → paste the token.
+
+> Under the hood `make token` runs `php artisan api:token`. You can pass a custom email
+> or label directly:
+> ```bash
+> docker compose exec app php artisan api:token admin@site.com --name=mobile
+> ```
+
+> ⚠️ **IMPORTANT — the upload is processed by a queued job.**
+> After uploading, the import does **not** run until a queue worker is running. Start one
+> (and leave it running) so queued jobs are processed:
+> ```bash
+> make queue
+> ```
+> Without a worker, the endpoint still returns `202 { "batch_id": ... }`, but the data is
+> **not** imported — the job just waits in the queue. Check the result via the
+> `import_batches` table (`status` becomes `completed`).
+
+---
+
+## Testing
+
+Run the full test suite:
+
+```bash
+make test
+```
+
+> `make test` runs `php artisan test` inside the app container. Tests use an in-memory
+> SQLite database (configured in `phpunit.xml`), so they never touch the MySQL container.
+
+Run a single test file:
+
+```bash
+docker compose exec app php artisan test --filter=StudentImportJobTest
+```
+
+The import feature is covered by `tests/Feature/StudentImportJobTest.php`, which asserts:
+schools are inserted once (deduplicated), every student is linked to the correct school,
+the batch is marked completed with the right counts, re-uploads are idempotent, and a
+missing file marks the batch failed.
+
+---
+
 ## Project Structure
 
 ```
 .
-├── app/                    # Laravel application code
+├── app/
+│   ├── Console/Commands/
+│   │   └── CreateApiToken.php            # `php artisan api:token` — issues a Sanctum token
+│   ├── Enums/
+│   │   └── ImportStatus.php              # queued | processing | completed | failed
+│   ├── Http/
+│   │   ├── Controllers/Api/V1/
+│   │   │   └── UploadController.php       # POST /api/v1/upload — stores file, queues job
+│   │   └── Requests/
+│   │       └── UploadRequest.php          # validates the uploaded CSV
+│   ├── Importers/
+│   │   └── CsvStudentImporter.php         # streams the CSV, dedups, bulk upserts
+│   ├── Jobs/
+│   │   └── StudentImportJob.php           # queued job — tracks batch status
+│   ├── Models/
+│   │   ├── ImportBatch.php                # upload tracking record
+│   │   ├── School.php                     # hasMany students
+│   │   └── Student.php                    # belongsTo school
+│   ├── Providers/
+│   │   └── AppServiceProvider.php          # binds repository interfaces
+│   ├── Repositories/
+│   │   ├── Contracts/                     # SchoolRepositoryInterface, StudentRepositoryInterface
+│   │   ├── SchoolRepository.php            # upsert schools by unique code
+│   │   └── StudentRepository.php           # upsert students by unique student_code
+│   └── Services/
+│       └── StudentImportService.php        # wraps the import in a DB transaction
+├── database/migrations/                    # schools, students, import_batches
 ├── docker/
-│   ├── php/Dockerfile      # PHP 8.4-FPM image (Laravel + Laravel Excel extensions)
-│   └── nginx/default.conf  # Nginx site config (large upload limits)
-├── docker-compose.yml      # app, nginx, mysql, redis services
-├── routes/api.php          # API routes
+│   ├── php/Dockerfile                      # PHP 8.4-FPM (pdo_mysql, redis, ...)
+│   └── nginx/default.conf                  # Nginx config (large upload limits)
+├── tests/Feature/
+│   └── StudentImportJobTest.php            # end-to-end import tests
+├── docker-compose.yml                      # app, nginx, mysql, redis services
+├── Makefile                                # setup & dev shortcuts
+├── routes/api.php                          # API routes
 └── README.md
+```
+
+### Import flow
+
+```
+POST /api/v1/upload
+  → UploadController        stores file, creates ImportBatch, dispatches job
+  → StudentImportJob        (queued) manages status: processing → completed / failed
+  → StudentImportService    opens a DB transaction
+  → CsvStudentImporter      streams CSV in chunks, dedups schools, links students
+  → School/StudentRepository  bulk upserts (idempotent, by unique keys)
 ```
