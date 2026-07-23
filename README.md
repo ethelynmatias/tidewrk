@@ -436,3 +436,10 @@ Order cancelled ──▶ OrderConfirmed finally delivered ──▶ each listen
                                                          'skipped' — zero side effects,
                                                          and the ledger records why
 ```
+## Manual Testing:
+<img width="548" height="268" alt="image" src="https://github.com/user-attachments/assets/c779e84a-9174-42db-8a8a-8fa05dc1f029" />
+<img width="370" height="119" alt="image" src="https://github.com/user-attachments/assets/ac873dca-41a6-4eb4-bb26-435cdac66309" />
+<img width="415" height="101" alt="image" src="https://github.com/user-attachments/assets/1281dd08-d70a-418b-9ab1-6ef61c9088a7" />
+
+
+
