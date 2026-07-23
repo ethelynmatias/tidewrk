@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Exceptions;
+namespace App\Domain\Order\Exceptions;
 
-use App\Enums\OrderStatus;
+use App\Domain\Order\State\OrderStatus;
 use DomainException;
 
-class InvalidOrderTransition extends DomainException
+class InvalidOrderTransitionException extends DomainException
 {
     public function __construct(
         public readonly OrderStatus $from,

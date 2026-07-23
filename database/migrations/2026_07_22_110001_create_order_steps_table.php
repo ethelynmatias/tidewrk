@@ -6,14 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * The order_steps table is an append-only execution ledger: one row per
-     * fulfillment step attempt. It exists so engineers can answer "why is this
-     * order stuck?", "which step failed?", "was it retried?" and "is it safe to
-     * retry?" with a query — without relying on application logs.
-     */
+
     public function up(): void
     {
         Schema::create('order_steps', function (Blueprint $table) {

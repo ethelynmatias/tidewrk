@@ -15,6 +15,10 @@ RUN docker-php-ext-install \
     mbstring \
     zip
 
+# phpredis — required for QUEUE_CONNECTION=redis / REDIS_CLIENT=phpredis
+RUN pecl install redis \
+    && docker-php-ext-enable redis
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Avoid git "dubious ownership" errors on the bind-mounted project

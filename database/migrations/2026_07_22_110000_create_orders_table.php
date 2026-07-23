@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('order_number')->unique(); // natural / idempotency key
+            $table->string('order_number')->unique();
 
             $table->enum('status', [
                 'pending',
@@ -25,7 +25,6 @@ return new class extends Migration
 
             $table->decimal('total_amount', 12, 2)->default(0);
 
-            // Optimistic-locking token — bumped on every state change so a stale
             // worker's write affects zero rows and can be detected.
             $table->unsignedBigInteger('version')->default(0);
 
